@@ -6,6 +6,7 @@ using System.Threading;
 using MySql.Data.MySqlClient;
 using System.Text.RegularExpressions;
 using System.Data;
+using System.IO;
 
 namespace HypeBot
 {
@@ -39,32 +40,93 @@ namespace HypeBot
 
         static void Main(string[] args)
         {
+            Console.WriteLine("Initializing Skype...");
+            Console.WriteLine("Note: You may have to accept a request from the Skype client.");
             InitSkype();
+            Console.WriteLine("Finding largest chat room...");
             chatRoom = FindLargestChatRoom();
-            //ParseChat();
             skype.MessageStatus += OnMessageStatus;
-            Console.WriteLine("Press any key to quit...");
-            while (!Console.KeyAvailable)
+            Console.WriteLine("Hype Bot Initialized.\n");
+            ShowHelp();
+            
+            while (true)
             {
-                Thread.Sleep(1);
+                Console.Write("\n>");
+                string input = Console.ReadLine();
+                switch (input)
+                {
+                    case "help":
+                        ShowHelp();
+                        break;
+                    case "reset":
+                        Reset();
+                        break;
+                    default:
+                        Console.WriteLine(String.Format("Error: Invalid command '{0}'. Type 'help' for a list of valid commands.", input));
+                        break;
+                }
             }
+        }
+
+        private static void Reset()
+        {
+            Console.WriteLine("Creating database...");
+            CreateDatabase();
+            ParseChatRoom();
+            Console.WriteLine("Parsing complete.");
+        }
+
+        private static void CreateDatabase()
+        {
+            string query = File.ReadAllText("../../../create_schema.sql");
+            MySqlConnection conn = new MySqlConnection(connStr);
+            try
+            {
+                conn.Open();
+                MySqlCommand command = new MySqlCommand(query, conn);
+                command.ExecuteNonQuery();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.ToString());
+            }
+            conn.Close();
+        }
+
+        private static void ShowHelp()
+        {
+            ShowCommand("help", "Displays a list of commands.");
+            ShowCommand("reset", "Reset the database and parse the chat room for URLs.");
+        }
+
+        private static void ShowCommand(string command, string description)
+        {
+            Console.WriteLine(String.Format("{0,-10}" + description, command));
         }
 
         // Searches the entire chat room for URLs and saves them to the database
 
         private static void ParseChatRoom()
         {
-            foreach (ChatMessage message in chatRoom.Messages)
+            MySqlConnection conn = new MySqlConnection(connStr);
+            try
             {
-                string url = GetUrl(message.Body);
-                if (url.Length > 0)
+                conn.Open();
+                foreach (ChatMessage message in chatRoom.Messages)
                 {
-                    if (GetHype(url) == null)
+                    string url = GetUrl(message.Body);
+                    if (url.Length > 0)
                     {
-                        AddHype(new Hype(message.Sender.Handle, message.Sender.FullName, url, message.Body, message.Timestamp));
+                        Console.WriteLine(url);
+                        AddHype(new Hype(message.Sender.Handle, message.Sender.FullName, url, message.Body, message.Timestamp), conn);
                     }
                 }
             }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.ToString());
+            }
+            conn.Close();
         }
 
         // Adds the given hype to the database.
@@ -75,15 +137,7 @@ namespace HypeBot
             try
             {
                 conn.Open();
-                string query = "INSERT INTO old_hype VALUES (@url, @handle, @name, @date, @body)";
-                MySqlDataAdapter adapter = new MySqlDataAdapter(query, conn);
-                adapter.InsertCommand = new MySqlCommand(query, conn);
-                adapter.InsertCommand.Parameters.Add(new MySqlParameter("@handle", hype.handle));
-                adapter.InsertCommand.Parameters.Add(new MySqlParameter("@name", hype.name));
-                adapter.InsertCommand.Parameters.Add(new MySqlParameter("@url", hype.url));
-                adapter.InsertCommand.Parameters.Add(new MySqlParameter("@body", hype.body));
-                adapter.InsertCommand.Parameters.Add(new MySqlParameter("@date", hype.date));
-                adapter.InsertCommand.ExecuteNonQuery();
+                AddHype(hype, conn);
             }
             catch (Exception ex)
             {
@@ -92,6 +146,19 @@ namespace HypeBot
             }
             conn.Close();
             return true;
+        }
+
+        private static void AddHype(Hype hype, MySqlConnection conn)
+        {
+            string query = "REPLACE INTO old_hype VALUES (@url, @handle, @name, @date, @body)";
+            MySqlDataAdapter adapter = new MySqlDataAdapter(query, conn);
+            adapter.InsertCommand = new MySqlCommand(query, conn);
+            adapter.InsertCommand.Parameters.Add(new MySqlParameter("@handle", hype.handle));
+            adapter.InsertCommand.Parameters.Add(new MySqlParameter("@name", hype.name));
+            adapter.InsertCommand.Parameters.Add(new MySqlParameter("@url", hype.url));
+            adapter.InsertCommand.Parameters.Add(new MySqlParameter("@body", hype.body));
+            adapter.InsertCommand.Parameters.Add(new MySqlParameter("@date", hype.date));
+            adapter.InsertCommand.ExecuteNonQuery();
         }
 
         // Seaches the database for the given URL and returns the associated Hype if found.
@@ -179,7 +246,20 @@ namespace HypeBot
         {
             Regex regex = new Regex(@"(?i)\b((?:[a-z][\w-]+:(?:/{1,3}|[a-z0-9%])|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:'"".,<>?«»“”‘’]))");
             Match match = regex.Match(message);
-            return match.ToString();
+            string fullUrl = match.ToString();
+            if (fullUrl.Length > 0)
+            {
+                regex = new Regex(@"(https?://)?(www.)?(.*)");
+                Match simplifiedUrl = regex.Match(fullUrl);
+                string simplified = simplifiedUrl.Groups[3].ToString();
+                if (simplified.EndsWith("/"))
+                    simplified = simplified.Substring(0, simplified.Length - 1);
+                return simplified;
+            }
+            else
+            {
+                return fullUrl;
+            }
         }
     }
 }

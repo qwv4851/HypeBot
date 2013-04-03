@@ -1,7 +1,7 @@
-delimiter $$
-DROP DATABASE IF EXISTS `skype`$$
-CREATE DATABASE `skype`$$
-USE `skype`$$
+
+DROP DATABASE IF EXISTS `skype`;
+CREATE DATABASE `skype`;
+USE `skype`;
 
 CREATE TABLE `old_hype` (
   `url` varchar(511) NOT NULL,
@@ -10,5 +10,5 @@ CREATE TABLE `old_hype` (
   `date` datetime NOT NULL,
   `body` text,
   PRIMARY KEY (`url`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1$$
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
