@@ -34,7 +34,8 @@ namespace HypeBot
     {
         private static Skype skype;
         private static Chat chatRoom;
-        private static string connStr = "server=localhost;user=root;database=skype;port=3306;";
+        private static string createStr = "server=localhost;user=root;port=3306;";
+        private static string connStr = createStr + "database=skype;";
         
         // Initializes the bot and waits for a key press to quit.
 
@@ -45,6 +46,7 @@ namespace HypeBot
             InitSkype();
             Console.WriteLine("Finding largest chat room...");
             chatRoom = FindLargestChatRoom();
+            InitDatabase();
             skype.MessageStatus += OnMessageStatus;
             Console.WriteLine("Hype Bot Initialized.\n");
             ShowHelp();
@@ -53,6 +55,7 @@ namespace HypeBot
             {
                 Console.Write("\n>");
                 string input = Console.ReadLine();
+                Console.WriteLine();
                 switch (input)
                 {
                     case "help":
@@ -68,6 +71,30 @@ namespace HypeBot
             }
         }
 
+        private static void InitDatabase()
+        {
+            string query = @"SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = 'skype'";
+            MySqlConnection conn = new MySqlConnection(createStr);
+            try
+            {
+                conn.Open();
+                MySqlDataAdapter adapter = new MySqlDataAdapter(query, conn);
+                adapter.SelectCommand = new MySqlCommand(query, conn);
+                DataSet dataSet = new DataSet();
+                adapter.Fill(dataSet);
+                DataTable table = dataSet.Tables[0];
+                if (table.Rows.Count == 0)
+                {
+                    Reset();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.ToString());
+            }
+            conn.Close();
+        }
+
         private static void Reset()
         {
             Console.WriteLine("Creating database...");
@@ -79,7 +106,7 @@ namespace HypeBot
         private static void CreateDatabase()
         {
             string query = File.ReadAllText("../../../create_schema.sql");
-            MySqlConnection conn = new MySqlConnection(connStr);
+            MySqlConnection conn = new MySqlConnection(createStr);
             try
             {
                 conn.Open();
