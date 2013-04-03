@@ -54,7 +54,7 @@ namespace HypeBot
             chatRoom = FindLargestChatRoom();
             InitDatabase();
             skype.MessageStatus += OnMessageStatus;
-            Console.WriteLine("Hype Bot Initialized.\n");
+            Console.WriteLine("Hype Bot initialized.\n");
             ShowHelp();
             
             while (true)
@@ -69,6 +69,9 @@ namespace HypeBot
                         break;
                     case "reset":
                         Reset();
+                        break;
+                    case "quit":
+                        Environment.Exit(0);
                         break;
                     default:
                         Console.WriteLine(String.Format("Error: Invalid command '{0}'. Type 'help' for a list of valid commands.", input));
@@ -150,8 +153,11 @@ namespace HypeBot
 
         private static void ShowHelp()
         {
+            Console.WriteLine("Commands");
+            Console.WriteLine("-----------------------------------------------------------------");
             ShowCommand("help", "Displays a list of commands.");
             ShowCommand("reset", "Reset the database and parse the chat room for URLs.");
+            ShowCommand("quit", "Stop running the bot and close the application.");
         }
 
         private static void ShowCommand(string command, string description)
