@@ -105,19 +105,36 @@ namespace HypeBot
 
         private static void CreateDatabase()
         {
-            string query = File.ReadAllText("../../../create_schema.sql");
-            MySqlConnection conn = new MySqlConnection(createStr);
-            try
+            string file = "create_schema.sql";
+            string relative = "../../../";
+            string path = file;
+            if (!File.Exists(path))
             {
-                conn.Open();
-                MySqlCommand command = new MySqlCommand(query, conn);
-                command.ExecuteNonQuery();
+                path = relative + path;
             }
-            catch (Exception ex)
+            if (File.Exists(path))
             {
-                Console.WriteLine(ex.ToString());
+                string query = File.ReadAllText(path);
+                MySqlConnection conn = new MySqlConnection(createStr);
+                try
+                {
+                    conn.Open();
+                    MySqlCommand command = new MySqlCommand(query, conn);
+                    command.ExecuteNonQuery();
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.ToString());
+                }
+                conn.Close();
             }
-            conn.Close();
+            else
+            {
+                Console.WriteLine("Missing file: " + file);
+                Console.Write("Press any key to continue...");
+                while (!Console.KeyAvailable);
+                Environment.Exit(1);
+            }
         }
 
         private static void ShowHelp()
