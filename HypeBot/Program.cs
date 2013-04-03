@@ -7,6 +7,7 @@ using MySql.Data.MySqlClient;
 using System.Text.RegularExpressions;
 using System.Data;
 using System.IO;
+using System.Configuration;
 
 namespace HypeBot
 {
@@ -34,8 +35,13 @@ namespace HypeBot
     {
         private static Skype skype;
         private static Chat chatRoom;
-        private static string createStr = "server=localhost;user=root;port=3306;";
-        private static string connStr = createStr + "database=skype;";
+        private static string host = GetConfig("host");
+        private static string user = GetConfig("user");
+        private static string password = GetConfig("password");
+        private static string schema = GetConfig("schema");
+        private static string port = GetConfig("port");
+        private static string createStr = String.Format("server={0};user={1};password={2};port={3};", host, user, password, port);
+        private static string connStr = String.Format("{0}database={1};", createStr, schema);
         
         // Initializes the bot and waits for a key press to quit.
 
@@ -71,9 +77,14 @@ namespace HypeBot
             }
         }
 
+        private static string GetConfig(string key)
+        {
+            return ConfigurationSettings.AppSettings[key];
+        }
+
         private static void InitDatabase()
         {
-            string query = @"SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = 'skype'";
+            string query = String.Format(@"SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = '{0}'", schema);
             MySqlConnection conn = new MySqlConnection(createStr);
             try
             {
