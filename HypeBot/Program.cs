@@ -8,6 +8,15 @@ using System.Text.RegularExpressions;
 using System.Data;
 using System.IO;
 using System.Configuration;
+using TestStack.White.UIItems.WindowItems;
+using TestStack.White.UIItems.Finders;
+using System.Diagnostics;
+using TestStack.White.UIItems;
+using System.Windows.Automation;
+using System.Net;
+using System.Collections.Specialized;
+using System.Xml.Linq;
+using System.Text;
 
 namespace HypeBot
 {
@@ -33,6 +42,7 @@ namespace HypeBot
 
     class Program
     {
+        private static ListView listView = null;
         private static Skype skype;
         private static Chat chatRoom;
         private static string host = GetConfig("host");
@@ -50,10 +60,12 @@ namespace HypeBot
             Console.WriteLine("Initializing Skype...");
             Console.WriteLine("Note: You may have to accept a request from the Skype client.");
             InitSkype();
-            Console.WriteLine("Finding largest chat room...");
-            chatRoom = FindLargestChatRoom();
+            Console.WriteLine("Detecting window...");
+            DetectWindow();
+            chatRoom = SelectChatRoom();
             InitDatabase();
             skype.MessageStatus += OnMessageStatus;
+            skype.FileTransferStatusChanged += OnFileStatusChanged;
             Console.WriteLine("Hype Bot initialized.\n");
             ShowHelp();
             
@@ -77,6 +89,49 @@ namespace HypeBot
                         Console.WriteLine(String.Format("Error: Invalid command '{0}'. Type 'help' for a list of valid commands.", input));
                         break;
                 }
+            }
+        }
+
+        private static string UploadImage(string p)
+        {
+            string url = string.Empty;
+            using (var w = new WebClient())
+            {
+                var values = new NameValueCollection
+                {
+                    { "image", Convert.ToBase64String(File.ReadAllBytes(p)) }
+                };
+
+                w.Headers["Authorization"] = "Client-ID 98b87f5fc485025";
+                byte[] response = w.UploadValues("https://api.imgur.com/3/image", values);
+
+                string json = Encoding.ASCII.GetString(response);
+                int startIndex = json.IndexOf("http:");
+                int endIndex = Math.Max(Math.Max(json.IndexOf(".png"), json.IndexOf(".jpg")), json.IndexOf(".gif"));
+                url = json.Substring(startIndex, endIndex - startIndex).Replace("\\", "");
+            }
+            return url;
+        }
+
+        static void DetectWindow()
+        {
+            //Process skypeProc = Process.GetProcessesByName("Skype").First();
+            TestStack.White.Application app = TestStack.White.Application.Attach("Skype");
+            List<Window> windows = app.GetWindows();
+            Window window = windows.First();
+            IUIItem lv = window.Get(SearchCriteria.ByText("Chat Content List"));
+            listView = new ListView(lv.AutomationElement, lv.ActionListener);
+        }
+
+        static void OnFileStatusChanged(IFileTransfer pTransfer, TFileTransferStatus Status)
+        {
+            string lowerpath = pTransfer.FilePath.ToLower();
+            if (Status == TFileTransferStatus.fileTransferStatusCompleted && (lowerpath.EndsWith(".png") || lowerpath.EndsWith(".jpg") || lowerpath.EndsWith(".gif")))
+            {
+                Console.WriteLine("Uploading file: " + pTransfer.FilePath);
+                string url = UploadImage(pTransfer.FilePath);
+                chatRoom.SendMessage("Image uploaded: " + url);
+                File.Delete(pTransfer.FilePath);
             }
         }
 
@@ -261,14 +316,22 @@ namespace HypeBot
                 skype.Client.Start();
         }
 
-        // Finds the chat room with the highest number of users.
+        // Select a chat room
 
-        static Chat FindLargestChatRoom()
+        static Chat SelectChatRoom()
         {
-            var chats = skype.Chats.Cast<Chat>().OrderByDescending(chat => chat.Members.Count);
-            Chat largestChat = chats.First();
-            Console.WriteLine("Chat Room: {0}, Members: {1}", largestChat.Name, largestChat.Members.Count);
-            return largestChat;
+            var chats = skype.Chats.Cast<Chat>().OrderByDescending(chat => chat.Members.Count).ToArray<Chat>();
+            for (int i = 0; i < chats.Length; i++)
+            {
+                Chat chat = chats[i];
+                Console.WriteLine("{0}: Name: {1} Members: {2}", i, chat.Name, chat.Members.Count);
+            }
+
+            Console.Write("Choose a room (default=0): ");
+            string input = Console.ReadLine();
+            int selection = 0;
+            int.TryParse(input, out selection);
+            return chats[selection];
         }
 
         // Checks received messages for old URLs and alerts the chat by sending a response message.
@@ -281,6 +344,24 @@ namespace HypeBot
 
             if (status == TChatMessageStatus.cmsReceived)
             {
+
+                if (message.Body.StartsWith("sent file"))
+                {
+                    Console.WriteLine("File send detected: " + message.Body);
+                    while (true)
+                    {
+                        try
+                        {
+                            AutomationElement b = listView.GetElement(SearchCriteria.ByText("Save"));
+                            Button button = new Button(b, listView.ActionListener);
+                            button.RaiseClickEvent();
+                        }
+                        catch (Exception)
+                        {
+                            break;
+                        }
+                    }
+                }
                 //Console.WriteLine("Handle: {0}, Display Name: {1}, Full Name: {2}, Body: {3}", sender.Handle, sender.DisplayName, sender.FullName, message.Body);
                 string url = GetUrl(message.Body);
                 if (url.Length > 0)
