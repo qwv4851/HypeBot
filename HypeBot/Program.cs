@@ -17,6 +17,7 @@ using System.Net;
 using System.Collections.Specialized;
 using System.Xml.Linq;
 using System.Text;
+using TestStack.White.UIItems.ListBoxItems;
 
 namespace HypeBot
 {
@@ -42,7 +43,7 @@ namespace HypeBot
 
     class Program
     {
-        private static ListView listView = null;
+        private static ListBox listBox = null;
         private static Skype skype;
         private static Chat chatRoom;
         private static string host = GetConfig("host");
@@ -115,22 +116,38 @@ namespace HypeBot
 
         static void DetectWindow()
         {
-            //Process skypeProc = Process.GetProcessesByName("Skype").First();
-            TestStack.White.Application app = TestStack.White.Application.Attach("Skype");
-            List<Window> windows = app.GetWindows();
-            Window window = windows.First();
-            IUIItem lv = window.Get(SearchCriteria.ByText("Chat Content List"));
-            listView = new ListView(lv.AutomationElement, lv.ActionListener);
+            try
+            {
+                TestStack.White.Application app = TestStack.White.Application.Attach("Skype");
+                Console.WriteLine("Attached to Skype");
+                List<Window> windows = app.GetWindows();
+                Window window = windows.First();
+                Console.WriteLine("Main window detected");
+                listBox = window.Get<ListBox>(SearchCriteria.ByText("Chat Content List"));
+                Console.WriteLine("List box detected");
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.StackTrace);
+            }
         }
 
         static void OnFileStatusChanged(IFileTransfer pTransfer, TFileTransferStatus Status)
         {
             string lowerpath = pTransfer.FilePath.ToLower();
-            if (Status == TFileTransferStatus.fileTransferStatusCompleted && (lowerpath.EndsWith(".png") || lowerpath.EndsWith(".jpg") || lowerpath.EndsWith(".gif")))
+            if (Status == TFileTransferStatus.fileTransferStatusCompleted)
             {
-                Console.WriteLine("Uploading file: " + pTransfer.FilePath);
-                string url = UploadImage(pTransfer.FilePath);
-                chatRoom.SendMessage("Image uploaded: " + url);
+                if ((lowerpath.EndsWith(".png") || lowerpath.EndsWith(".jpg") || lowerpath.EndsWith(".gif")))
+                {
+                    Console.WriteLine("Uploading file: " + pTransfer.FilePath);
+                    string url = UploadImage(pTransfer.FilePath);
+                    chatRoom.SendMessage(String.Format("{0}: {1}", pTransfer.Filename, url));
+                }
+                else
+                {
+                    Console.WriteLine("Invalid file extension for file: " + pTransfer.Filename);
+                }
+                Console.WriteLine("Deleting " + pTransfer.Filename);
                 File.Delete(pTransfer.FilePath);
             }
         }
@@ -348,18 +365,38 @@ namespace HypeBot
                 if (message.Body.StartsWith("sent file"))
                 {
                     Console.WriteLine("File send detected: " + message.Body);
-                    while (true)
+
+                    try
                     {
-                        try
+                        AutomationElement btn = null;
+                        AutomationElement lastMessage = TreeWalker.ContentViewWalker.GetLastChild(listBox.AutomationElement);
+                            
+                        // Search up through the previous messages until a save button is found
+                        for (int i = 0; i < 20; i++)
                         {
-                            AutomationElement b = listView.GetElement(SearchCriteria.ByText("Save"));
-                            Button button = new Button(b, listView.ActionListener);
-                            button.RaiseClickEvent();
+                            btn = lastMessage.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.NameProperty, "Save"));
+                            if (btn == null)
+                            {
+                                lastMessage = TreeWalker.ContentViewWalker.GetPreviousSibling(lastMessage);
+                                continue;
+                            }
+                            else
+                            {
+                                Button button = new Button(btn, listBox.ActionListener);
+                                button.RaiseClickEvent();
+                                Console.WriteLine("Save button pressed");
+                                break;
+                            }
                         }
-                        catch (Exception)
+
+                        if (btn == null)
                         {
-                            break;
+                            Console.WriteLine("Error: Failed to find save button");
                         }
+                    }
+                    catch (Exception)
+                    {
+                        Console.WriteLine("Error: Failed to press save button");
                     }
                 }
                 //Console.WriteLine("Handle: {0}, Display Name: {1}, Full Name: {2}, Body: {3}", sender.Handle, sender.DisplayName, sender.FullName, message.Body);
