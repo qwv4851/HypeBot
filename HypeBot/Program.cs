@@ -365,38 +365,11 @@ namespace HypeBot
                 if (message.Body.StartsWith("sent file"))
                 {
                     Console.WriteLine("File send detected: " + message.Body);
-
-                    try
+                    if (!PressSaveButton())
                     {
-                        AutomationElement btn = null;
-                        AutomationElement lastMessage = TreeWalker.ContentViewWalker.GetLastChild(listBox.AutomationElement);
-                            
-                        // Search up through the previous messages until a save button is found
-                        for (int i = 0; i < 20; i++)
-                        {
-                            btn = lastMessage.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.NameProperty, "Save"));
-                            if (btn == null)
-                            {
-                                lastMessage = TreeWalker.ContentViewWalker.GetPreviousSibling(lastMessage);
-                                continue;
-                            }
-                            else
-                            {
-                                Button button = new Button(btn, listBox.ActionListener);
-                                button.RaiseClickEvent();
-                                Console.WriteLine("Save button pressed");
-                                break;
-                            }
-                        }
-
-                        if (btn == null)
-                        {
-                            Console.WriteLine("Error: Failed to find save button");
-                        }
-                    }
-                    catch (Exception)
-                    {
-                        Console.WriteLine("Error: Failed to press save button");
+                        Console.WriteLine("Retrying in 3 seconds...");
+                        Thread.Sleep(3000);
+                        PressSaveButton();
                     }
                 }
                 //Console.WriteLine("Handle: {0}, Display Name: {1}, Full Name: {2}, Body: {3}", sender.Handle, sender.DisplayName, sender.FullName, message.Body);
@@ -417,6 +390,52 @@ namespace HypeBot
                     }
                 }
             }
+        }
+
+        static bool PressSaveButton()
+        {
+            try
+            {
+                AutomationElement btn = null;
+                AutomationElement lastMessage = TreeWalker.ContentViewWalker.GetLastChild(listBox.AutomationElement);
+
+                if (lastMessage == null)
+                {
+                    Console.WriteLine("Error: Failed to find last child of listbox.");
+                    return false;
+                }
+
+                // Search up through the previous messages until a save button is found
+                for (int i = 0; i < 20; i++)
+                {
+                    btn = lastMessage.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.NameProperty, "Save"));
+                    if (btn == null)
+                    {
+                        lastMessage = TreeWalker.ContentViewWalker.GetPreviousSibling(lastMessage);
+                        continue;
+                    }
+                    else
+                    {
+                        Button button = new Button(btn, listBox.ActionListener);
+                        button.RaiseClickEvent();
+                        Console.WriteLine("Save button pressed");
+                        break;
+                    }
+                }
+
+                if (btn == null)
+                {
+                    Console.WriteLine("Error: Failed to find save button");
+                    return false;
+                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("Error: Failed to press save button");
+                Console.WriteLine(e);
+                return false;
+            }
+            return true;
         }
 
         // Extracts the first URL found in the given message.
