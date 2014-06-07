@@ -1,28 +1,30 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using SKYPE4COMLib;
-using System.Threading;
-using MySql.Data.MySqlClient;
-using System.Text.RegularExpressions;
-using System.Data;
-using System.IO;
 using System.Configuration;
-using TestStack.White.UIItems.WindowItems;
-using TestStack.White.UIItems.Finders;
+using System.Data;
 using System.Diagnostics;
-using TestStack.White.UIItems;
-using System.Windows.Automation;
+using System.IO;
+using System.Linq;
 using System.Net;
 using System.Collections.Specialized;
-using System.Xml.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Windows.Automation;
+
+using MySql.Data.MySqlClient;
+using SKYPE4COMLib;
+using TestStack.White.UIItems;
+using TestStack.White.UIItems.Finders;
 using TestStack.White.UIItems.ListBoxItems;
+using TestStack.White.UIItems.WindowItems;
+
+
 
 namespace HypeBot
 {
     // Structure which stores data about messages which include URLs.
-
     class Hype
     {
         public Hype(string handle, string name, string url, string body, DateTime date)
@@ -53,11 +55,14 @@ namespace HypeBot
         private static string port = GetConfig("port");
         private static string createStr = String.Format("server={0};user={1};password={2};port={3};", host, user, password, port);
         private static string connStr = String.Format("{0}database={1};", createStr, schema);
+
+        private static Object skypeLock = new Object();
         
         // Initializes the bot and waits for a key press to quit.
-
         static void Main(string[] args)
         {
+            Console.WriteLine("Initializing Hip Chat");
+            var t = Task.Factory.StartNew(HipChat.InitHipChat);
             Console.WriteLine("Initializing Skype...");
             Console.WriteLine("Note: You may have to accept a request from the Skype client.");
             InitSkype();
@@ -141,7 +146,7 @@ namespace HypeBot
                 {
                     Console.WriteLine("Uploading file: " + pTransfer.FilePath);
                     string url = UploadImage(pTransfer.FilePath);
-                    chatRoom.SendMessage(String.Format("{0}: {1}", pTransfer.Filename, url));
+                    SendMessage(String.Format("{0}: {1}", pTransfer.Filename, url));
                 }
                 else
                 {
@@ -152,7 +157,7 @@ namespace HypeBot
             }
         }
 
-        private static string GetConfig(string key)
+        public static string GetConfig(string key)
         {
             return ConfigurationSettings.AppSettings[key];
         }
@@ -238,7 +243,6 @@ namespace HypeBot
         }
 
         // Searches the entire chat room for URLs and saves them to the database
-
         private static void ParseChatRoom()
         {
             MySqlConnection conn = new MySqlConnection(connStr);
@@ -263,7 +267,6 @@ namespace HypeBot
         }
 
         // Adds the given hype to the database.
-
         private static bool AddHype(Hype hype)
         {
             MySqlConnection conn = new MySqlConnection(connStr);
@@ -295,7 +298,6 @@ namespace HypeBot
         }
 
         // Seaches the database for the given URL and returns the associated Hype if found.
-
         public static Hype GetHype(string url)
         {
             MySqlConnection conn = new MySqlConnection(connStr);
@@ -325,7 +327,6 @@ namespace HypeBot
         }
 
         // Starts Skype if not currently running.
-
         private static void InitSkype()
         {
             skype = new SKYPE4COMLib.Skype();
@@ -334,7 +335,6 @@ namespace HypeBot
         }
 
         // Select a chat room
-
         static Chat SelectChatRoom()
         {
             var chats = skype.Chats.Cast<Chat>().OrderByDescending(chat => chat.Members.Count).ToArray<Chat>();
@@ -352,7 +352,6 @@ namespace HypeBot
         }
 
         // Checks received messages for old URLs and alerts the chat by sending a response message.
-
         static void OnMessageStatus(ChatMessage message, TChatMessageStatus status)
         {
             if (message.Chat.Name != chatRoom.Name)
@@ -386,9 +385,11 @@ namespace HypeBot
                     {
                         string errorMsg = String.Format("OLD HYPE DETECTED: Violator {0} ({1}) Old hype URL {2} first posted by {3} on {4}. Original message: \"{5}\"", sender.FullName, sender.Handle, oldHype.url, oldHype.name, oldHype.date, oldHype.body);
                         Console.WriteLine("\n" + errorMsg );
-                        chatRoom.SendMessage(errorMsg);
+                        SendMessage(errorMsg);
                     }
                 }
+
+                HipChat.SendHipMessage(sender.FullName, message.Body);
             }
         }
 
@@ -439,7 +440,6 @@ namespace HypeBot
         }
 
         // Extracts the first URL found in the given message.
-
         public static string GetUrl(string message)
         {
             Regex regex = new Regex(@"(?i)\b((?:[a-z][\w-]+:(?:/{1,3}|[a-z0-9%])|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:'"".,<>?«»“”‘’]))");
@@ -457,6 +457,14 @@ namespace HypeBot
             else
             {
                 return fullUrl;
+            }
+        }
+
+        public static void SendMessage(string message)
+        {
+            lock (skypeLock)
+            {
+                chatRoom.SendMessage(message);
             }
         }
     }
