@@ -42,19 +42,30 @@ namespace HypeBot
                 try
                 {
                     HttpListenerContext context = listener.GetContext();
-                    Console.WriteLine("Message received");
                     HttpListenerRequest request = context.Request;
-                    byte[] inputBuffer = new byte[request.ContentLength64];
-                    request.InputStream.Read(inputBuffer, 0, inputBuffer.Length);
-                    string json = Encoding.UTF8.GetString(inputBuffer);
-                    XmlDocument doc = JsonConvert.DeserializeXmlNode(json, "root");
-                    XmlNode messageData = doc["root"]["item"]["message"];
-                    string sender = messageData["from"]["name"].InnerText;
-                    string message = messageData["message"].InnerText;
-                    string skypeMessage = String.Format("{0}: {1}", sender, message);
-                    Console.WriteLine("Sending skype message:" + skypeMessage);
-                    Program.SendMessage(skypeMessage);
-                    Console.WriteLine("Message sent");
+                    if (context.Request.UserAgent == "HipChat.com" && context.Request.ContentType == "application/json")
+                    {
+                        Console.WriteLine("Message received");
+                        byte[] inputBuffer = new byte[request.ContentLength64];
+                        request.InputStream.Read(inputBuffer, 0, inputBuffer.Length);
+                        string json = Encoding.UTF8.GetString(inputBuffer);
+                        try
+                        {
+                            XmlDocument doc = JsonConvert.DeserializeXmlNode(json, "root");
+                            XmlNode messageData = doc["root"]["item"]["message"];
+                            string sender = messageData["from"]["name"].InnerText;
+                            string message = messageData["message"].InnerText;
+                            string skypeMessage = String.Format("{0}: {1}", sender, message);
+                            Console.WriteLine("Sending skype message:" + skypeMessage);
+                            Program.SendMessage(skypeMessage);
+                        }
+                        catch (NullReferenceException nullRefEx)
+                        {
+                            Console.WriteLine(nullRefEx);
+                            Console.WriteLine("Original JSON: " + json);
+                        }
+                    }
+                   
                 }
                 catch (Exception e)
                 {
