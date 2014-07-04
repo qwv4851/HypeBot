@@ -57,10 +57,19 @@ namespace HypeBot
         private static string connStr = String.Format("{0}database={1};", createStr, schema);
 
         private static Object skypeLock = new Object();
-        
+        private static int roomNumber = -1;
+
         // Initializes the bot and waits for a key press to quit.
         static void Main(string[] args)
         {
+            if (args.Length > 0)
+            {
+                if (!int.TryParse(args[0], out roomNumber))
+                {
+                    Console.WriteLine("Invalid room number: {0}", args[0]);
+                }
+            }
+
             Console.WriteLine("Initializing Hip Chat");
             var t = Task.Factory.StartNew(HipChat.InitHipChat);
             Console.WriteLine("Initializing Skype...");
@@ -344,11 +353,18 @@ namespace HypeBot
                 Console.WriteLine("{0}: Name: {1} Members: {2}", i, chat.Name, chat.Members.Count);
             }
 
-            Console.Write("Choose a room (default=0): ");
-            string input = Console.ReadLine();
-            int selection = 0;
-            int.TryParse(input, out selection);
-            return chats[selection];
+            if (roomNumber == -1)
+            {
+                Console.Write("Choose a room (default = 0): ");
+                string input = Console.ReadLine();
+                int.TryParse(input, out roomNumber);
+                if (roomNumber == -1 || roomNumber >= chats.Length)
+                {
+                    roomNumber = 0;
+                }
+            }
+            Console.WriteLine("Joining room {0}", roomNumber);
+            return chats[roomNumber];
         }
 
         // Checks received messages for old URLs and alerts the chat by sending a response message.
