@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using System.Xml;
 
 using Newtonsoft.Json;
+using System.Net.Sockets;
 
 namespace HypeBot
 {
@@ -15,6 +16,7 @@ namespace HypeBot
     {
         private static string hipAuth = Program.GetConfig("hipAuth");
         private static string hipRoom = Program.GetConfig("hipRoom");
+        private static string botAuth = Program.GetConfig("botAuth");
 
         public static void InitHipChat()
         {
@@ -32,6 +34,90 @@ namespace HypeBot
                 }
             }
 
+            DeleteAllWebhooks();
+            RegisterWebhook();
+
+            StartListener(listener);
+        }
+
+        private static void DeleteAllWebhooks()
+        {
+            Console.WriteLine("Deleting all webhooks");
+            string requestUrl = String.Format("https://api.hipchat.com/v2/room/{0}/webhook?auth_token={1}", hipRoom, botAuth);
+            WebRequest httpWebRequest = (HttpWebRequest)WebRequest.Create(requestUrl);
+            httpWebRequest.GetResponse();
+            HttpWebResponse httpResponse = (HttpWebResponse)httpWebRequest.GetResponse();
+            using (StreamReader streamReader = new StreamReader(httpResponse.GetResponseStream()))
+            {
+                string json = streamReader.ReadToEnd();
+                XmlDocument doc = JsonConvert.DeserializeXmlNode(json, "root");
+                foreach (XmlNode node in doc["root"].ChildNodes)
+                {
+                    if (node["id"] != null)
+                    {
+                        string id = node["id"].InnerText;
+                        DeleteWebhook(id);
+                    }
+                }
+            }
+        }
+
+        private static void DeleteWebhook(string id)
+        {
+            Console.WriteLine("Deleting webhook {0}", id);
+            string requestUrl = String.Format("https://api.hipchat.com/v2/room/{0}/webhook/{1}?auth_token={2}", hipRoom, id, botAuth);
+            WebRequest httpWebRequest = (HttpWebRequest)WebRequest.Create(requestUrl);
+            httpWebRequest.Method = "DELETE";
+            HttpWebResponse httpResponse = (HttpWebResponse)httpWebRequest.GetResponse();
+        }
+
+        private static void RegisterWebhook()
+        {
+            string requestUrl = String.Format("https://api.hipchat.com/v2/room/{0}/webhook?auth_token={1}", hipRoom, botAuth);
+            Console.WriteLine("Creating webhook request for {0}", requestUrl);
+            WebRequest httpWebRequest = (HttpWebRequest)WebRequest.Create(requestUrl);
+            httpWebRequest.ContentType = "application/json";
+            httpWebRequest.Method = "POST";
+
+            using (StreamWriter streamWriter = new StreamWriter(httpWebRequest.GetRequestStream()))
+            {
+                string ipAddr = GetPublicIP();
+                string json = String.Format("{{\"url\":\"http://{0}\",\"event\":\"room_message\",\"name\":\"onMessage\"}}", ipAddr);
+
+                Console.WriteLine("Registering webhook using json: {0}", json);
+                streamWriter.Write(json);
+                streamWriter.Flush();
+                streamWriter.Close();
+            }
+
+            HttpWebResponse httpResponse = (HttpWebResponse)httpWebRequest.GetResponse();
+            using (StreamReader streamReader = new StreamReader(httpResponse.GetResponseStream()))
+            {
+                string result = streamReader.ReadToEnd();
+                Console.WriteLine(result);
+            }
+        }
+
+        public static string GetPublicIP()
+        {
+            String direction = "";
+            WebRequest request = WebRequest.Create("http://checkip.dyndns.org/");
+            using (WebResponse response = request.GetResponse())
+            using (StreamReader stream = new StreamReader(response.GetResponseStream()))
+            {
+                direction = stream.ReadToEnd();
+            }
+
+            //Search for the ip in the html
+            int first = direction.IndexOf("Address: ") + 9;
+            int last = direction.LastIndexOf("</body>");
+            direction = direction.Substring(first, last - first);
+
+            return direction;
+        }
+
+        private static void StartListener(HttpListener listener)
+        {
             listener.Start();
             Console.WriteLine("Started listener");
 
@@ -52,12 +138,23 @@ namespace HypeBot
                         try
                         {
                             XmlDocument doc = JsonConvert.DeserializeXmlNode(json, "root");
-                            XmlNode messageData = doc["root"]["item"]["message"];
-                            string sender = messageData["from"]["name"].InnerText;
-                            string message = messageData["message"].InnerText;
-                            string skypeMessage = String.Format("{0}: {1}", sender, message);
-                            Console.WriteLine("Sending skype message:" + skypeMessage);
-                            Program.SendMessage(skypeMessage);
+                            if (doc["root"]["event"] != null)
+                            {
+                                if (doc["root"]["event"].InnerText == "room_message")
+                                {
+                                    XmlNode messageData = doc["root"]["item"]["message"];
+                                    string sender = messageData["from"]["name"].InnerText;
+                                    string message = messageData["message"].InnerText;
+                                    string skypeMessage = String.Format("{0}: {1}", sender, message);
+                                    Console.WriteLine("Sending skype message:" + skypeMessage);
+                                    Program.SendMessage(skypeMessage);
+                               }
+                                else
+                                {
+                                    Console.WriteLine("Notification type: {0}", doc["root"]["event"].InnerText);
+                                }
+                            }
+                           
                         }
                         catch (NullReferenceException nullRefEx)
                         {
@@ -65,7 +162,7 @@ namespace HypeBot
                             Console.WriteLine("Original JSON: " + json);
                         }
                     }
-                   
+
                 }
                 catch (Exception e)
                 {
@@ -79,6 +176,7 @@ namespace HypeBot
             WebRequest request = WebRequest.Create(String.Format("https://api.hipchat.com/v2/room/{0}/notification?auth_token={1}", hipRoom, hipAuth));
             request.Method = "POST";
             string json = String.Format("{{ \"color\":\"purple\",\"message\": \"{0}: {1}\"}}", sender, message);
+            Console.WriteLine("Sending hip message json: {0}", json);
             byte[] byteArray = Encoding.UTF8.GetBytes(json);
             request.ContentType = "application/json";
             request.ContentLength = byteArray.Length;
