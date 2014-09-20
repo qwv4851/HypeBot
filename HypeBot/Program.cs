@@ -260,7 +260,8 @@ namespace HypeBot
                 conn.Open();
                 foreach (ChatMessage message in chatRoom.Messages)
                 {
-                    string url = GetUrl(message.Body);
+                    string fullUrl;
+                    string url = GetUrl(message.Body, out fullUrl);
                     if (url.Length > 0)
                     {
                         Console.WriteLine(url);
@@ -388,7 +389,9 @@ namespace HypeBot
                     }
                 }
                 //Console.WriteLine("Handle: {0}, Display Name: {1}, Full Name: {2}, Body: {3}", sender.Handle, sender.DisplayName, sender.FullName, message.Body);
-                string url = GetUrl(message.Body);
+                string fullUrl;
+                string url = GetUrl(message.Body, out fullUrl);
+                string messageBody = message.Body;
                 if (url.Length > 0)
                 {
                     //Console.WriteLine("Url detected: " + url);
@@ -403,9 +406,11 @@ namespace HypeBot
                         Console.WriteLine("\n" + errorMsg );
                         SendMessage(errorMsg);
                     }
+
+                    messageBody = messageBody.Replace(fullUrl, String.Format("<a href=\\\"{0}\\\">{1}</a>", fullUrl, url));
                 }
 
-                HipChat.SendHipMessage(sender.FullName, message.Body);
+                HipChat.SendHipMessage(sender.FullName, messageBody);
             }
         }
 
@@ -456,11 +461,12 @@ namespace HypeBot
         }
 
         // Extracts the first URL found in the given message.
-        public static string GetUrl(string message)
+        public static string GetUrl(string message, out string fullUrl)
         {
             Regex regex = new Regex(@"(?i)\b((?:[a-z][\w-]+:(?:/{1,3}|[a-z0-9%])|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:'"".,<>?«»“”‘’]))");
             Match match = regex.Match(message);
-            string fullUrl = match.ToString();
+            fullUrl = match.ToString();
+
             if (fullUrl.Length > 0)
             {
                 regex = new Regex(@"(https?://)?(www.)?(.*)");
