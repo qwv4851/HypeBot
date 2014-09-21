@@ -9,6 +9,7 @@ using System.Xml;
 
 using Newtonsoft.Json;
 using System.Net.Sockets;
+using System.Text.RegularExpressions;
 
 namespace HypeBot
 {
@@ -16,7 +17,7 @@ namespace HypeBot
     {
         private static string hipAuth = Program.GetConfig("hipAuth");
         private static string hipRoom = Program.GetConfig("hipRoom");
-        private static string botAuth = Program.GetConfig("botAuth");
+        private static string adminAuth = Program.GetConfig("adminAuth");
 
         public static void InitHipChat()
         {
@@ -43,7 +44,7 @@ namespace HypeBot
         private static void DeleteAllWebhooks()
         {
             Console.WriteLine("Deleting all webhooks");
-            string requestUrl = String.Format("https://api.hipchat.com/v2/room/{0}/webhook?auth_token={1}", hipRoom, botAuth);
+            string requestUrl = String.Format("https://api.hipchat.com/v2/room/{0}/webhook?auth_token={1}", hipRoom, adminAuth);
             WebRequest httpWebRequest = (HttpWebRequest)WebRequest.Create(requestUrl);
             httpWebRequest.GetResponse();
             HttpWebResponse httpResponse = (HttpWebResponse)httpWebRequest.GetResponse();
@@ -65,7 +66,7 @@ namespace HypeBot
         private static void DeleteWebhook(string id)
         {
             Console.WriteLine("Deleting webhook {0}", id);
-            string requestUrl = String.Format("https://api.hipchat.com/v2/room/{0}/webhook/{1}?auth_token={2}", hipRoom, id, botAuth);
+            string requestUrl = String.Format("https://api.hipchat.com/v2/room/{0}/webhook/{1}?auth_token={2}", hipRoom, id, adminAuth);
             WebRequest httpWebRequest = (HttpWebRequest)WebRequest.Create(requestUrl);
             httpWebRequest.Method = "DELETE";
             HttpWebResponse httpResponse = (HttpWebResponse)httpWebRequest.GetResponse();
@@ -73,7 +74,7 @@ namespace HypeBot
 
         private static void RegisterWebhook()
         {
-            string requestUrl = String.Format("https://api.hipchat.com/v2/room/{0}/webhook?auth_token={1}", hipRoom, botAuth);
+            string requestUrl = String.Format("https://api.hipchat.com/v2/room/{0}/webhook?auth_token={1}", hipRoom, adminAuth);
             Console.WriteLine("Creating webhook request for {0}", requestUrl);
             WebRequest httpWebRequest = (HttpWebRequest)WebRequest.Create(requestUrl);
             httpWebRequest.ContentType = "application/json";
@@ -173,9 +174,30 @@ namespace HypeBot
         }
         public static void SendHipMessage(string sender, string message)
         {
+            // Format quoted messages
+            Match quote = Regex.Match(message, @"(\[\d+:\d+:\d+ .M]) (.*?): (.*?)\r\n\r\n<<<");
+            if (quote.Length > 0)
+            {
+                string timestamp = quote.Groups[1].Value;
+                string quoteName = quote.Groups[2].Value;
+                string quoteBody = quote.Groups[3].Value;
+                string beforeQuote = message.Substring(0, quote.Index);
+                if (beforeQuote.Length > 0)
+                {
+                    beforeQuote += "<br>";
+                }
+                string afterQuote = message.Substring(quote.Index + quote.Length);
+                if (afterQuote.Length > 0)
+                {
+                    afterQuote = "<br>" + afterQuote;
+                }
+                message = String.Format("{0}<i>&ldquo;{1}&rdquo; &mdash;{2}, {3}</i> {4}", beforeQuote, quoteBody, quoteName, timestamp, afterQuote);
+            }
+
+            message = EscapeStringValue(message);
             WebRequest request = WebRequest.Create(String.Format("https://api.hipchat.com/v2/room/{0}/notification?auth_token={1}", hipRoom, hipAuth));
             request.Method = "POST";
-            string json = String.Format("{{ \"color\":\"purple\",\"message\": \"{0}: {1}\"}}", sender, message);
+            string json = String.Format("{{ \"color\":\"purple\",\"message\": \"<b>{0}:</b> {1}\"}}", sender, message);
             Console.WriteLine("Sending hip message json: {0}", json);
             byte[] byteArray = Encoding.UTF8.GetBytes(json);
             request.ContentType = "application/json";
@@ -185,6 +207,46 @@ namespace HypeBot
             WebResponse response = request.GetResponse();
             dataStream.Close();
             response.Close();
+        }
+
+        public static string EscapeStringValue(string value)
+        {
+            const char BACK_SLASH = '\\';
+            const char SLASH = '/';
+            const char DBL_QUOTE = '"';
+            const char CARRIAGE_RETURN = '\r';
+            const char LINE_FEED = '\n';
+
+            var output = new StringBuilder(value.Length);
+            foreach (char c in value)
+            {
+                switch (c)
+                {
+                    case SLASH:
+                        output.AppendFormat("{0}{1}", BACK_SLASH, SLASH);
+                        break;
+
+                    case BACK_SLASH:
+                        output.AppendFormat("{0}{0}", BACK_SLASH);
+                        break;
+
+                    case DBL_QUOTE:
+                        output.AppendFormat("{0}{1}", BACK_SLASH, DBL_QUOTE);
+                        break;
+                    case CARRIAGE_RETURN:
+                        //output.Append("\\r");
+                        break;
+                    case LINE_FEED:
+                        output.Append("<br>");
+                        break;
+
+                    default:
+                        output.Append(c);
+                        break;
+                }
+            }
+
+            return output.ToString();
         }
     }
 }
