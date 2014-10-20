@@ -392,7 +392,27 @@ namespace HypeBot
                 string fullUrl;
                 string url = GetUrl(message.Body, out fullUrl);
                 string messageBody = message.Body;
-                if (url.Length > 0)
+
+                // Format quoted messages
+                Match quote = Regex.Match(messageBody, @"(\[.*\d+:\d+:\d+ .M]) (.*?): (.*?)\r\n\r\n<<<", RegexOptions.Singleline);
+                if (quote.Length > 0)
+                {
+                    string timestamp = quote.Groups[1].Value;
+                    string quoteName = quote.Groups[2].Value;
+                    string quoteBody = quote.Groups[3].Value;
+                    string beforeQuote = messageBody.Substring(0, quote.Index);
+                    if (beforeQuote.Length > 0)
+                    {
+                        beforeQuote += "<br>";
+                    }
+                    string afterQuote = messageBody.Substring(quote.Index + quote.Length);
+                    if (afterQuote.Length > 0)
+                    {
+                        afterQuote = "<br>" + afterQuote;
+                    }
+                    messageBody = String.Format("{0}<i>&ldquo;{1}&rdquo; &mdash;{2}, {3}</i> {4}", beforeQuote, quoteBody, quoteName, timestamp, afterQuote);
+                }
+                else if (url.Length > 0)
                 {
                     //Console.WriteLine("Url detected: " + url);
                     Hype oldHype = GetHype(url);
@@ -407,7 +427,7 @@ namespace HypeBot
                         SendMessage(errorMsg);
                     }
 
-                    messageBody = messageBody.Replace(fullUrl, String.Format("<a href=\\\"{0}\\\">{1}</a>", fullUrl, url));
+                    messageBody = messageBody.Replace(fullUrl, String.Format("<a href=\"{0}\">{1}</a>", fullUrl, url));
                 }
 
                 HipChat.SendHipMessage(sender.FullName, messageBody);
