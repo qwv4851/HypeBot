@@ -174,30 +174,10 @@ namespace HypeBot
         }
         public static void SendHipMessage(string sender, string message)
         {
-            // Format quoted messages
-            Match quote = Regex.Match(message, @"(\[\d+:\d+:\d+ .M]) (.*?): (.*?)\r\n\r\n<<<");
-            if (quote.Length > 0)
-            {
-                string timestamp = quote.Groups[1].Value;
-                string quoteName = quote.Groups[2].Value;
-                string quoteBody = quote.Groups[3].Value;
-                string beforeQuote = message.Substring(0, quote.Index);
-                if (beforeQuote.Length > 0)
-                {
-                    beforeQuote += "<br>";
-                }
-                string afterQuote = message.Substring(quote.Index + quote.Length);
-                if (afterQuote.Length > 0)
-                {
-                    afterQuote = "<br>" + afterQuote;
-                }
-                message = String.Format("{0}<i>&ldquo;{1}&rdquo; &mdash;{2}, {3}</i> {4}", beforeQuote, quoteBody, quoteName, timestamp, afterQuote);
-            }
-
             message = EscapeStringValue(message);
             WebRequest request = WebRequest.Create(String.Format("https://api.hipchat.com/v2/room/{0}/notification?auth_token={1}", hipRoom, hipAuth));
             request.Method = "POST";
-            string json = String.Format("{{ \"color\":\"purple\",\"message\": \"<b>{0}:</b> {1}\"}}", sender, message);
+            string json = String.Format("{{ \"color\":\"purple\",\"message\": \"<b>{0}: </b>{1}\"}}", sender, message);
             Console.WriteLine("Sending hip message json: {0}", json);
             byte[] byteArray = Encoding.UTF8.GetBytes(json);
             request.ContentType = "application/json";
