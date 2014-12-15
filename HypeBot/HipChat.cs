@@ -175,6 +175,7 @@ namespace HypeBot
         public static void SendHipMessage(string sender, string message)
         {
             message = EscapeStringValue(message);
+            sender = EscapeStringValue(sender);
             WebRequest request = WebRequest.Create(String.Format("https://api.hipchat.com/v2/room/{0}/notification?auth_token={1}", hipRoom, hipAuth));
             request.Method = "POST";
             string json = String.Format("{{ \"color\":\"purple\",\"message\": \"<b>{0}: </b>{1}\"}}", sender, message);
