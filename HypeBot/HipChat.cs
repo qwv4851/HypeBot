@@ -10,6 +10,7 @@ using System.Xml;
 using Newtonsoft.Json;
 using System.Net.Sockets;
 using System.Text.RegularExpressions;
+using System.Globalization;
 
 namespace HypeBot
 {
@@ -145,10 +146,20 @@ namespace HypeBot
                                 {
                                     XmlNode messageData = doc["root"]["item"]["message"];
                                     string sender = messageData["from"]["name"].InnerText;
+                                    string handle = messageData["from"]["mention_name"].InnerText;
                                     string message = messageData["message"].InnerText;
+                                    string dateStr = messageData["date"].InnerText;
+                                    DateTime date = DateTime.Parse(dateStr, null, DateTimeStyles.RoundtripKind).ToLocalTime();
                                     string skypeMessage = String.Format("{0}: {1}", sender, message);
                                     Console.WriteLine("Sending skype message:" + skypeMessage);
                                     Program.SendMessage(skypeMessage);
+
+                                    string fullUrl;
+                                    string url = Program.GetUrl(message, out fullUrl);
+                                    if (url.Length > 0)
+                                    {
+                                        Program.CheckHype(message, date, sender, handle, url);
+                                    }
                                }
                                 else
                                 {
@@ -175,10 +186,22 @@ namespace HypeBot
         public static void SendHipMessage(string sender, string message)
         {
             message = EscapeStringValue(message);
-            sender = EscapeStringValue(sender);
+            if (sender != null)
+            {
+                sender = EscapeStringValue(sender);
+            }
             WebRequest request = WebRequest.Create(String.Format("https://api.hipchat.com/v2/room/{0}/notification?auth_token={1}", hipRoom, hipAuth));
             request.Method = "POST";
-            string json = String.Format("{{ \"color\":\"purple\",\"message\": \"<b>{0}: </b>{1}\"}}", sender, message);
+            string json;
+            if (sender == null)
+            {
+                json = String.Format("{{ \"color\":\"purple\",\"message\": \"<b>{0}</b>\"}}", message);
+            }
+            else
+            {
+                json = String.Format("{{ \"color\":\"purple\",\"message\": \"<b>{0}: </b>{1}\"}}", sender, message);
+            }
+            
             Console.WriteLine("Sending hip message json: {0}", json);
             byte[] byteArray = Encoding.UTF8.GetBytes(json);
             request.ContentType = "application/json";
