@@ -62,6 +62,7 @@ namespace HypeBot
         // Initializes the bot and waits for a key press to quit.
         static void Main(string[] args)
         {
+            RedditBot.Submit("Test Post, Pls Upboat", "http://www.reddit.com");
             if (args.Length > 0)
             {
                 if (!int.TryParse(args[0], out roomNumber))
@@ -428,6 +429,8 @@ namespace HypeBot
             if (oldHype == null)
             {
                 AddHype(new Hype(handle, fullName, url, messageBody, timestamp));
+                string title = String.Format("{0}: {1}", fullName, messageBody);
+                RedditBot.Submit(title, url);
             }
             else
             {
