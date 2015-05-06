@@ -414,23 +414,27 @@ namespace HypeBot
                 }
                 else if (url.Length > 0)
                 {
-                    //Console.WriteLine("Url detected: " + url);
-                    Hype oldHype = GetHype(url);
-                    if (oldHype == null)
-                    {
-                        AddHype(new Hype(sender.Handle, sender.FullName, url, message.Body, message.Timestamp));
-                    }
-                    else
-                    {
-                        string errorMsg = String.Format("OLD HYPE DETECTED: Violator {0} ({1}) Old hype URL {2} first posted by {3} on {4}. Original message: \"{5}\"", sender.FullName, sender.Handle, oldHype.url, oldHype.name, oldHype.date, oldHype.body);
-                        Console.WriteLine("\n" + errorMsg );
-                        SendMessage(errorMsg);
-                    }
-
+                    CheckHype(messageBody, message.Timestamp, sender.FullName, sender.Handle, url);
                     messageBody = messageBody.Replace(fullUrl, String.Format("<a href=\"{0}\">{1}</a>", fullUrl, url));
                 }
 
                 HipChat.SendHipMessage(sender.FullName, messageBody);
+            }
+        }
+
+        public static void CheckHype(string messageBody, DateTime timestamp, string fullName, string handle, string url)
+        {
+            Hype oldHype = GetHype(url);
+            if (oldHype == null)
+            {
+                AddHype(new Hype(handle, fullName, url, messageBody, timestamp));
+            }
+            else
+            {
+                string errorMsg = String.Format("OLD HYPE DETECTED: Violator {0} ({1}) Old hype URL {2} first posted by {3} on {4}. Original message: \"{5}\"", fullName, handle, oldHype.url, oldHype.name, oldHype.date, oldHype.body);
+                Console.WriteLine("\n" + errorMsg);
+                SendMessage(errorMsg);
+                HipChat.SendHipMessage(null, errorMsg);
             }
         }
 
