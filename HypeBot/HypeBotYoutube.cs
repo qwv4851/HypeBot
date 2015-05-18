@@ -8,7 +8,7 @@ namespace HypeBot
 {
     class HypeBotYoutube
     {
-        private const string apiKey = "AIzaSyDeTj3OLckTP3y6V889Nz9Zw0eUBfOEKpY";
+        private static string apiKey = Program.GetConfig("youtubeAuth");
 
         public static String YoutubeTitle(string url)
         {
@@ -21,6 +21,9 @@ namespace HypeBot
           
             string requestUrl = String.Format("https://www.googleapis.com/youtube/v3/videos?id={0}&key={1}&fields=items(snippet(title%2CpublishedAt)%2Cstatistics)&part=snippet", videoID, apiKey);
             WebRequest httpWebRequest = (HttpWebRequest)WebRequest.Create(requestUrl);
+            ServicePointManager.SecurityProtocol = SecurityProtocolType.Ssl3;
+            ServicePointManager.ServerCertificateValidationCallback = delegate { return true; };
+
             try
             {
                 httpWebRequest.GetResponse();
