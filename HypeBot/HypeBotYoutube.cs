@@ -21,7 +21,7 @@ namespace HypeBot
             }
             
             string title;
-            string videoID = url.Substring(url.Length - 11, 11);;
+            string videoID = url.Substring(url.Length - 11);
           
             string requestUrl = String.Format("https://www.googleapis.com/youtube/v3/videos?id={0}&key={1}&fields=items(snippet(title%2CpublishedAt)%2Cstatistics)&part=snippet", videoID, apiKey);
             WebRequest httpWebRequest = (HttpWebRequest)WebRequest.Create(requestUrl);
