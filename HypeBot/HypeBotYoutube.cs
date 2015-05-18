@@ -14,23 +14,15 @@ namespace HypeBot
     {
         private const string apiKey = "AIzaSyDeTj3OLckTP3y6V889Nz9Zw0eUBfOEKpY";
 
-        public static String youtubeTitle(string url)
+        public static String YoutubeTitle(string url)
         {
-            bool youtube = false;
-            if (url.Contains("youtube.com"))
-            {
-                youtube = true;
-            } else if (!url.Contains("youtu.be")) {
+            if (!url.Contains("youtube.com") && !url.Contains("youtu.be")) {
                 return null;
             }
             
             string title;
-            string videoID;
-            if (youtube) {
-                videoID = url.Substring(url.Length - 11, 11);
-            } else {
-                videoID = url.Substring(url.Length - 11, 11);
-            }
+            string videoID = url.Substring(url.Length - 11, 11);;
+          
             string requestUrl = String.Format("https://www.googleapis.com/youtube/v3/videos?id={0}&key={1}&fields=items(snippet(title%2CpublishedAt)%2Cstatistics)&part=snippet", videoID, apiKey);
             WebRequest httpWebRequest = (HttpWebRequest)WebRequest.Create(requestUrl);
             httpWebRequest.GetResponse();
@@ -45,6 +37,5 @@ namespace HypeBot
             }
             return title;
         }
-
     }
 }
