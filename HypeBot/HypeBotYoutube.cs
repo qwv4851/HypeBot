@@ -29,9 +29,9 @@ namespace HypeBot
                 HttpWebResponse httpResponse = (HttpWebResponse)httpWebRequest.GetResponse();
 
                 string title;
+
                 using (StreamReader streamReader = new StreamReader(httpResponse.GetResponseStream()))
                 {
-                    string json = streamReader.ReadToEnd();
                     json = streamReader.ReadToEnd();
                     XmlDocument doc = JsonConvert.DeserializeXmlNode(json, "root");
                     XmlElement xmlSnippet = doc["root"]["items"]["snippet"];
