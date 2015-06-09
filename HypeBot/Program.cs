@@ -11,16 +11,9 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Windows.Automation;
 
 using MySql.Data.MySqlClient;
 using SKYPE4COMLib;
-using TestStack.White.UIItems;
-using TestStack.White.UIItems.Finders;
-using TestStack.White.UIItems.ListBoxItems;
-using TestStack.White.UIItems.WindowItems;
-
-
 
 namespace HypeBot
 {
@@ -45,7 +38,6 @@ namespace HypeBot
 
     class Program
     {
-        private static ListBox listBox = null;
         private static Skype skype;
         private static Chat chatRoom;
         private static string host = GetConfig("host");
@@ -75,8 +67,6 @@ namespace HypeBot
             Console.WriteLine("Initializing Skype...");
             Console.WriteLine("Note: You may have to accept a request from the Skype client.");
             InitSkype();
-            Console.WriteLine("Detecting window...");
-            DetectWindow();
             chatRoom = SelectChatRoom();
             InitDatabase();
             skype.MessageStatus += OnMessageStatus;
@@ -126,24 +116,6 @@ namespace HypeBot
                 url = json.Substring(startIndex, endIndex - startIndex).Replace("\\", "");
             }
             return url;
-        }
-
-        static void DetectWindow()
-        {
-            try
-            {
-                TestStack.White.Application app = TestStack.White.Application.Attach("Skype");
-                Console.WriteLine("Attached to Skype");
-                List<Window> windows = app.GetWindows();
-                Window window = windows.First();
-                Console.WriteLine("Main window detected");
-                listBox = window.Get<ListBox>(SearchCriteria.ByText("Chat Content List"));
-                Console.WriteLine("List box detected");
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e.StackTrace);
-            }
         }
 
         static void OnFileStatusChanged(IFileTransfer pTransfer, TFileTransferStatus Status)
@@ -377,17 +349,6 @@ namespace HypeBot
 
             if (status == TChatMessageStatus.cmsReceived)
             {
-
-                if (message.Body.StartsWith("sent file"))
-                {
-                    Console.WriteLine("File send detected: " + message.Body);
-                    if (!PressSaveButton())
-                    {
-                        Console.WriteLine("Retrying in 3 seconds...");
-                        Thread.Sleep(3000);
-                        PressSaveButton();
-                    }
-                }
                 //Console.WriteLine("Handle: {0}, Display Name: {1}, Full Name: {2}, Body: {3}", sender.Handle, sender.DisplayName, sender.FullName, message.Body);
                 string fullUrl;
                 string url = GetUrl(message.Body, out fullUrl);
@@ -438,52 +399,6 @@ namespace HypeBot
                 SendMessage(errorMsg);
                 HipChat.SendHipMessage(null, errorMsg);
             }
-        }
-
-        static bool PressSaveButton()
-        {
-            try
-            {
-                AutomationElement btn = null;
-                AutomationElement lastMessage = TreeWalker.ContentViewWalker.GetLastChild(listBox.AutomationElement);
-
-                if (lastMessage == null)
-                {
-                    Console.WriteLine("Error: Failed to find last child of listbox.");
-                    return false;
-                }
-
-                // Search up through the previous messages until a save button is found
-                for (int i = 0; i < 20; i++)
-                {
-                    btn = lastMessage.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.NameProperty, "Save"));
-                    if (btn == null)
-                    {
-                        lastMessage = TreeWalker.ContentViewWalker.GetPreviousSibling(lastMessage);
-                        continue;
-                    }
-                    else
-                    {
-                        Button button = new Button(btn, listBox.ActionListener);
-                        button.RaiseClickEvent();
-                        Console.WriteLine("Save button pressed");
-                        break;
-                    }
-                }
-
-                if (btn == null)
-                {
-                    Console.WriteLine("Error: Failed to find save button");
-                    return false;
-                }
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine("Error: Failed to press save button");
-                Console.WriteLine(e);
-                return false;
-            }
-            return true;
         }
 
         // Extracts the first URL found in the given message.
