@@ -18,7 +18,7 @@ namespace HypeBot
             }
 
             string videoID;
-            Boolean timestamp = false;
+            bool timestamp = false;
 
             if (url.Contains("?t="))
             {
