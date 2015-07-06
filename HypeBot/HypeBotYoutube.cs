@@ -3,6 +3,7 @@ using System.Net;
 using System.IO;
 using System.Xml;
 using Newtonsoft.Json;
+using System.Text.RegularExpressions;
 
 namespace HypeBot
 {
@@ -12,26 +13,24 @@ namespace HypeBot
 
         public static String YoutubeTitle(string url)
         {
-            if (!url.Contains("youtube.com") && !url.Contains("youtu.be")) 
+            string videoID;
+            bool timestamp = false;
+            string sPattern = "^.*(youtu.be\\/|v\\/|u\\/\\w\\/|embed\\/|watch\\?v=|\\&v=)([^#\\&\\?]{11}).*";
+            
+            Match match = Regex.Match(url, sPattern);
+            
+            if (match.Success)
+            {
+                videoID = match.Groups[2].Value;
+            }
+            else
             {
                 return null;
             }
 
-            string videoID;
-            bool timestamp = false;
-
             if (url.Contains("?t="))
             {
                 timestamp = true;
-                videoID = url.Substring(url.IndexOf("?") - 11, 11);
-            }
-            else if (url.Contains("&feature"))
-            {
-                videoID = url.Substring(url.Length - 28, 11);
-            }
-            else
-            {
-                videoID = url.Substring(url.Length - 11);
             }
                  
             string requestUrl = String.Format("https://www.googleapis.com/youtube/v3/videos?id={0}&key={1}&fields=items(snippet(title%2CpublishedAt)%2Cstatistics)&part=snippet", videoID, apiKey);
