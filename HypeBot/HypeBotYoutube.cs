@@ -16,9 +16,24 @@ namespace HypeBot
             {
                 return null;
             }
-            
-            string videoID = url.Substring(url.Length - 11);
-          
+
+            string videoID;
+            Boolean timestamp = false;
+
+            if (url.Contains("?t="))
+            {
+                timestamp = true;
+                videoID = url.Substring(url.IndexOf("?") - 11, 11);
+            }
+            else if (url.Contains("&feature"))
+            {
+                videoID = url.Substring(url.Length - 28, 11);
+            }
+            else
+            {
+                videoID = url.Substring(url.Length - 11);
+            }
+                 
             string requestUrl = String.Format("https://www.googleapis.com/youtube/v3/videos?id={0}&key={1}&fields=items(snippet(title%2CpublishedAt)%2Cstatistics)&part=snippet", videoID, apiKey);
             WebRequest httpWebRequest = (HttpWebRequest)WebRequest.Create(requestUrl);
             try
@@ -33,6 +48,10 @@ namespace HypeBot
                     XmlDocument doc = JsonConvert.DeserializeXmlNode(json, "root");
                     XmlElement xmlSnippet = doc["root"]["items"]["snippet"];
                     title = xmlSnippet["title"].InnerText;
+                    if (timestamp)
+                    {
+                        title += " [" + url.Substring(url.IndexOf("=") + 1) + "]";
+                    }
                     title += " [" + xmlSnippet["publishedAt"].InnerText.Substring(0, 4) + "]";
                 }
                 return title;
