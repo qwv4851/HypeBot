@@ -28,7 +28,7 @@ namespace HypeBot
                 return null;
             }
 
-            Match timestampMatch = Regex.Match(url, @"[\?\&]t=(\d*m?\d*s?)");
+            Match timestampMatch = Regex.Match(url, @"[\?\&]t=(\d*h?\d*m?\d*s?)");
             if (timestampMatch.Groups.Count > 1)
             {
                 timestamp = timestampMatch.Groups[1].Value;
