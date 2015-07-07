@@ -3,6 +3,7 @@ using System.Net;
 using System.IO;
 using System.Xml;
 using Newtonsoft.Json;
+using System.Text.RegularExpressions;
 
 namespace HypeBot
 {
@@ -12,13 +13,26 @@ namespace HypeBot
 
         public static String YoutubeTitle(string url)
         {
-            if (!url.Contains("youtube.com") && !url.Contains("youtu.be")) 
+            string videoID;
+            bool timestamp = false;
+            string sPattern = "^.*(youtu.be\\/|v\\/|u\\/\\w\\/|embed\\/|watch\\?v=|\\&v=)([^#\\&\\?]{11}).*";
+            
+            Match match = Regex.Match(url, sPattern);
+            
+            if (match.Success)
+            {
+                videoID = match.Groups[2].Value;
+            }
+            else
             {
                 return null;
             }
-            
-            string videoID = url.Substring(url.Length - 11);
-          
+
+            if (url.Contains("?t="))
+            {
+                timestamp = true;
+            }
+                 
             string requestUrl = String.Format("https://www.googleapis.com/youtube/v3/videos?id={0}&key={1}&fields=items(snippet(title%2CpublishedAt)%2Cstatistics)&part=snippet", videoID, apiKey);
             WebRequest httpWebRequest = (HttpWebRequest)WebRequest.Create(requestUrl);
             string json = String.Empty;
@@ -36,6 +50,10 @@ namespace HypeBot
                     XmlDocument doc = JsonConvert.DeserializeXmlNode(json, "root");
                     XmlElement xmlSnippet = doc["root"]["items"]["snippet"];
                     title = xmlSnippet["title"].InnerText;
+                    if (timestamp)
+                    {
+                        title += " [" + url.Substring(url.IndexOf("=") + 1) + "]";
+                    }
                     title += " [" + xmlSnippet["publishedAt"].InnerText.Substring(0, 4) + "]";
                 }
                 return title;
