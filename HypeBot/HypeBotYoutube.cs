@@ -28,7 +28,7 @@ namespace HypeBot
                 return null;
             }
 
-            if (url.Contains("?t="))
+            if (url.Contains("t="))
             {
                 timestamp = true;
             }
@@ -41,6 +41,7 @@ namespace HypeBot
                 HttpWebResponse httpResponse = (HttpWebResponse)httpWebRequest.GetResponse();
 
                 string title;
+
                 using (StreamReader streamReader = new StreamReader(httpResponse.GetResponseStream()))
                 {
                     string json = streamReader.ReadToEnd();
@@ -49,7 +50,7 @@ namespace HypeBot
                     title = xmlSnippet["title"].InnerText;
                     if (timestamp)
                     {
-                        title += " [" + url.Substring(url.IndexOf("=") + 1) + "]";
+                        title += " [" + url.Substring(url.LastIndexOf("t=") + 2) + "]";
                     }
                     title += " [" + xmlSnippet["publishedAt"].InnerText.Substring(0, 4) + "]";
                 }
