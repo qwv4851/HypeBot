@@ -14,7 +14,7 @@ namespace HypeBot
         public static String YoutubeTitle(string url)
         {
             string videoID;
-            bool timestamp = false;
+            string timestamp = null;
             string sPattern = "^.*(youtu.be\\/|v\\/|u\\/\\w\\/|embed\\/|watch\\?v=|\\&v=)([^#\\&\\?]{11}).*";
             
             Match match = Regex.Match(url, sPattern);
@@ -28,9 +28,10 @@ namespace HypeBot
                 return null;
             }
 
-            if (url.Contains("t="))
+            Match timestampMatch = Regex.Match(url, @"[\?\&\#]t=(\d*h?\d*m?\d*s?)");
+            if (timestampMatch.Groups.Count > 1)
             {
-                timestamp = true;
+                timestamp = timestampMatch.Groups[1].Value;
             }
                  
             string requestUrl = String.Format("https://www.googleapis.com/youtube/v3/videos?id={0}&key={1}&fields=items(snippet(title%2CpublishedAt)%2Cstatistics)&part=snippet", videoID, apiKey);
@@ -48,7 +49,7 @@ namespace HypeBot
                     XmlDocument doc = JsonConvert.DeserializeXmlNode(json, "root");
                     XmlElement xmlSnippet = doc["root"]["items"]["snippet"];
                     title = xmlSnippet["title"].InnerText;
-                    if (timestamp)
+                    if (timestamp != null)
                     {
                         title += " [" + url.Substring(url.LastIndexOf("t=") + 2) + "]";
                     }
