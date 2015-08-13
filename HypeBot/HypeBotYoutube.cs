@@ -52,7 +52,7 @@ namespace HypeBot
                     title = xmlSnippet["title"].InnerText;
                     if (timestamp)
                     {
-                        title += " [" + url.Substring(url.IndexOf("t=") + 2) + "]";
+                        title += " [" + url.Substring(url.IndexOf("=") + 1) + "]";
                     }
                     title += " [" + xmlSnippet["publishedAt"].InnerText.Substring(0, 4) + "]";
                 }
