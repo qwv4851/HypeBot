@@ -46,12 +46,13 @@ namespace HypeBot
         {
             Console.WriteLine("Deleting all webhooks");
             string requestUrl = String.Format("https://api.hipchat.com/v2/room/{0}/webhook?auth_token={1}", hipRoom, adminAuth);
+            Console.WriteLine("Request: {0}", requestUrl);
             WebRequest httpWebRequest = (HttpWebRequest)WebRequest.Create(requestUrl);
-            httpWebRequest.GetResponse();
             HttpWebResponse httpResponse = (HttpWebResponse)httpWebRequest.GetResponse();
             using (StreamReader streamReader = new StreamReader(httpResponse.GetResponseStream()))
             {
                 string json = streamReader.ReadToEnd();
+                Console.WriteLine("Response:: {0}", json);
                 XmlDocument doc = JsonConvert.DeserializeXmlNode(json, "root");
                 foreach (XmlNode node in doc["root"].ChildNodes)
                 {
@@ -71,6 +72,12 @@ namespace HypeBot
             WebRequest httpWebRequest = (HttpWebRequest)WebRequest.Create(requestUrl);
             httpWebRequest.Method = "DELETE";
             HttpWebResponse httpResponse = (HttpWebResponse)httpWebRequest.GetResponse();
+            using (StreamReader streamReader = new StreamReader(httpResponse.GetResponseStream()))
+            {
+                string result = streamReader.ReadToEnd();
+                Console.WriteLine(result);
+            }
+            Console.WriteLine("Webhook deleted");
         }
 
         private static void RegisterWebhook()
@@ -208,7 +215,14 @@ namespace HypeBot
             request.ContentLength = byteArray.Length;
             Stream dataStream = request.GetRequestStream();
             dataStream.Write(byteArray, 0, byteArray.Length);
+
             WebResponse response = request.GetResponse();
+            using (StreamReader streamReader = new StreamReader(response.GetResponseStream()))
+            {
+                string result = streamReader.ReadToEnd();
+                Console.WriteLine(result);
+            }
+            
             dataStream.Close();
             response.Close();
         }
