@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace HypeBot
@@ -17,8 +18,14 @@ namespace HypeBot
         { 
             try
             {
+                string youtubeTitle = HypeBotYoutube.YoutubeTitle(url);
+                if (youtubeTitle != null)
+                {
+                    title = Regex.Replace(title, @"(https?://)?(www.)?(youtu.\S*)", '"' + youtubeTitle + '"');
+                }
+
                 var reddit = new Reddit();
-                var user = reddit.LogIn(username, password);
+                var user = reddit.LogIn(username, password, false);
                 var sub = reddit.GetSubreddit(subreddit);
                 sub.SubmitPost(title, url);
             }
