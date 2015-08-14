@@ -160,6 +160,7 @@ namespace HypeBot
                                     string skypeMessage = String.Format("{0}: {1}", sender, message);
                                     Console.WriteLine("Sending skype message:" + skypeMessage);
                                     Program.SendMessage(skypeMessage);
+                                    Program.twitter.Tweet(message);
 
                                     string fullUrl;
                                     string url = Program.GetUrl(message, out fullUrl);
@@ -167,6 +168,7 @@ namespace HypeBot
                                     {
                                         Program.CheckHype(message, date, sender, handle, url);
                                     }
+                                    
                                }
                                 else
                                 {
@@ -192,10 +194,10 @@ namespace HypeBot
         }
         public static void SendHipMessage(string sender, string message)
         {
-            message = EscapeStringValue(message);
+            message = Program.EscapeStringValue(message);
             if (sender != null)
             {
-                sender = EscapeStringValue(sender);
+                sender = Program.EscapeStringValue(sender);
             }
             WebRequest request = WebRequest.Create(String.Format("https://api.hipchat.com/v2/room/{0}/notification?auth_token={1}", hipRoom, hipAuth));
             request.Method = "POST";
@@ -225,46 +227,6 @@ namespace HypeBot
             
             dataStream.Close();
             response.Close();
-        }
-
-        public static string EscapeStringValue(string value)
-        {
-            const char BACK_SLASH = '\\';
-            const char SLASH = '/';
-            const char DBL_QUOTE = '"';
-            const char CARRIAGE_RETURN = '\r';
-            const char LINE_FEED = '\n';
-
-            var output = new StringBuilder(value.Length);
-            foreach (char c in value)
-            {
-                switch (c)
-                {
-                    case SLASH:
-                        output.AppendFormat("{0}{1}", BACK_SLASH, SLASH);
-                        break;
-
-                    case BACK_SLASH:
-                        output.AppendFormat("{0}{0}", BACK_SLASH);
-                        break;
-
-                    case DBL_QUOTE:
-                        output.AppendFormat("{0}{1}", BACK_SLASH, DBL_QUOTE);
-                        break;
-                    case CARRIAGE_RETURN:
-                        //output.Append("\\r");
-                        break;
-                    case LINE_FEED:
-                        output.Append("<br>");
-                        break;
-
-                    default:
-                        output.Append(c);
-                        break;
-                }
-            }
-
-            return output.ToString();
         }
     }
 }
