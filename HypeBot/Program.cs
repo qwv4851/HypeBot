@@ -51,6 +51,8 @@ namespace HypeBot
         private static Object skypeLock = new Object();
         private static int roomNumber = -1;
 
+        public static HypeBotTwitter twitter = new HypeBotTwitter();
+
         // Initializes the bot and waits for a key press to quit.
         static void Main(string[] args)
         {
@@ -379,6 +381,7 @@ namespace HypeBot
                     messageBody = messageBody.Replace(fullUrl, String.Format("<a href=\"{0}\">{1}</a>", fullUrl, url));
                 }
 
+                twitter.Tweet(messageBody);
                 HipChat.SendHipMessage(sender.FullName, messageBody);
             }
         }
@@ -429,6 +432,46 @@ namespace HypeBot
             {
                 chatRoom.SendMessage(message);
             }
+        }
+
+        public static string EscapeStringValue(string value)
+        {
+            const char BACK_SLASH = '\\';
+            const char SLASH = '/';
+            const char DBL_QUOTE = '"';
+            const char CARRIAGE_RETURN = '\r';
+            const char LINE_FEED = '\n';
+
+            var output = new StringBuilder(value.Length);
+            foreach (char c in value)
+            {
+                switch (c)
+                {
+                    case SLASH:
+                        output.AppendFormat("{0}{1}", BACK_SLASH, SLASH);
+                        break;
+
+                    case BACK_SLASH:
+                        output.AppendFormat("{0}{0}", BACK_SLASH);
+                        break;
+
+                    case DBL_QUOTE:
+                        output.AppendFormat("{0}{1}", BACK_SLASH, DBL_QUOTE);
+                        break;
+                    case CARRIAGE_RETURN:
+                        //output.Append("\\r");
+                        break;
+                    case LINE_FEED:
+                        output.Append("<br>");
+                        break;
+
+                    default:
+                        output.Append(c);
+                        break;
+                }
+            }
+
+            return output.ToString();
         }
     }
 }
